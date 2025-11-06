@@ -522,11 +522,11 @@ void XMemoryMapWidget::on_tableViewMemoryMap_customContextMenuRequested(const QP
         getShortcuts()->_addMenuItem(&listMenuItems, X_ID_TABLE_SELECTION_DUMPTOFILE, this, SLOT(dumpSection()), XShortcuts::GROUPID_NONE);
         getShortcuts()->_addMenuItem_CopyRow(&listMenuItems, ui->tableViewMemoryMap);
 
-        QList<QObject *> listObjects = getShortcuts()->adjustContextMenu(&contextMenu, &listMenuItems);
+        getShortcuts()->adjustContextMenu(&contextMenu, &listMenuItems);
 
         contextMenu.exec(ui->tableViewMemoryMap->viewport()->mapToGlobal(pos));
 
-        XOptions::deleteQObjectList(&listObjects);
+
     }
 }
 
