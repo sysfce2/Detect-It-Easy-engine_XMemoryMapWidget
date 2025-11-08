@@ -525,8 +525,6 @@ void XMemoryMapWidget::on_tableViewMemoryMap_customContextMenuRequested(const QP
         getShortcuts()->adjustContextMenu(&contextMenu, &listMenuItems);
 
         contextMenu.exec(ui->tableViewMemoryMap->viewport()->mapToGlobal(pos));
-
-
     }
 }
 
