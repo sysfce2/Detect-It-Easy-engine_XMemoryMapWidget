@@ -52,11 +52,11 @@ XMemoryMapWidget::XMemoryMapWidget(QWidget *pParent) : XShortcutsWidget(pParent)
     ui->lineEditRelativeVirtualAddress->setToolTip(tr("Relative virtual address"));
 
     m_pDevice = nullptr;
-    g_options = {};
+    m_options = {};
     m_mode = XLineEditValidator::MODE_HEX_16;
-    g_bLockHex = false;
-    g_memoryMap = {};
-    g_pXInfoDB = nullptr;
+    m_bLockHex = false;
+    m_memoryMap = {};
+    m_pXInfoDB = nullptr;
 
     ui->checkBoxShowAll->setChecked(true);
 }
@@ -69,8 +69,8 @@ XMemoryMapWidget::~XMemoryMapWidget()
 void XMemoryMapWidget::setData(QIODevice *pDevice, const OPTIONS &options, XInfoDB *pXInfoDB)
 {
     m_pDevice = pDevice;
-    g_options = options;
-    g_pXInfoDB = pXInfoDB;
+    m_options = options;
+    m_pXInfoDB = pXInfoDB;
 
     XHexView::OPTIONS hex_options = {};  // TODO Check !!!
 
@@ -174,22 +174,22 @@ void XMemoryMapWidget::updateMemoryMap()
         const bool bBlocked4 = ui->tableViewMemoryMap->blockSignals(true);
         const bool bBlocked5 = ui->pageHex->blockSignals(true);
 
-        g_mapIndexes.clear();
+        m_mapIndexes.clear();
 
         XBinary::FT fileType = (XBinary::FT)(ui->comboBoxType->currentData().toInt());
         XBinary::MAPMODE mapMode = (XBinary::MAPMODE)(ui->comboBoxMapMode->currentData().toInt());
 
-        g_memoryMap = XFormats::getMemoryMap(fileType, mapMode, m_pDevice);
+        m_memoryMap = XFormats::getMemoryMap(fileType, mapMode, m_pDevice);
 
-        ui->lineEditArch->setText(g_memoryMap.sArch);
-        ui->lineEditMode->setText(XBinary::modeIdToString(g_memoryMap.mode));
-        ui->lineEditEndianness->setText(XBinary::endianToString(g_memoryMap.endian));
+        ui->lineEditArch->setText(m_memoryMap.sArch);
+        ui->lineEditMode->setText(XBinary::modeIdToString(m_memoryMap.mode));
+        ui->lineEditEndianness->setText(XBinary::endianToString(m_memoryMap.endian));
 
         ui->radioButtonFileOffset->setChecked(true);
 
         ui->lineEditFileOffset->setValue_uint32((quint32)0);
 
-        XBinary::MODE _mode = XBinary::getWidthModeFromMemoryMap(&g_memoryMap);
+        XBinary::MODE _mode = XBinary::getWidthModeFromMemoryMap(&m_memoryMap);
 
         // TODO move function to XShortcutWidget !!!
         if (_mode == XBinary::MODE_8) m_mode = XLineEditValidator::MODE_HEX_8;
@@ -202,9 +202,9 @@ void XMemoryMapWidget::updateMemoryMap()
         bool bShowAll = ui->checkBoxShowAll->isChecked();
 
         if (bShowAll) {
-            nNumberOfRecords = g_memoryMap.listRecords.count();
+            nNumberOfRecords = m_memoryMap.listRecords.count();
         } else {
-            nNumberOfRecords = XBinary::getNumberOfPhysicalRecords(&g_memoryMap);
+            nNumberOfRecords = XBinary::getNumberOfPhysicalRecords(&m_memoryMap);
         }
 
         QStandardItemModel *pModel = new QStandardItemModel(nNumberOfRecords, 4);
@@ -216,26 +216,26 @@ void XMemoryMapWidget::updateMemoryMap()
 
         //    QColor colDisabled = QWidget::palette().color(QPalette::Window);
 
-        qint32 _nNumberOfRecords = g_memoryMap.listRecords.count();
+        qint32 _nNumberOfRecords = m_memoryMap.listRecords.count();
 
         for (qint32 i = 0, j = 0; i < _nNumberOfRecords; i++) {
-            //        bool bIsVirtual=g_memoryMap.listRecords.at(i).bIsVirtual;
+            //        bool bIsVirtual=m_memoryMap.listRecords.at(i).bIsVirtual;
 
-            if ((!(g_memoryMap.listRecords.at(i).bIsVirtual)) || (bShowAll)) {
-                g_mapIndexes.insert(i, j);
+            if ((!(m_memoryMap.listRecords.at(i).bIsVirtual)) || (bShowAll)) {
+                m_mapIndexes.insert(i, j);
 
                 QStandardItem *pItemOffset = new QStandardItem;
 
-                pItemOffset->setData(g_memoryMap.listRecords.at(i).nOffset, Qt::UserRole + 0);
-                pItemOffset->setData(g_memoryMap.listRecords.at(i).nAddress, Qt::UserRole + 1);
-                pItemOffset->setData(g_memoryMap.listRecords.at(i).nSize, Qt::UserRole + 2);
+                pItemOffset->setData(m_memoryMap.listRecords.at(i).nOffset, Qt::UserRole + 0);
+                pItemOffset->setData(m_memoryMap.listRecords.at(i).nAddress, Qt::UserRole + 1);
+                pItemOffset->setData(m_memoryMap.listRecords.at(i).nSize, Qt::UserRole + 2);
                 pItemOffset->setData(QString("%1_%2_%3.bin")
-                                         .arg(XBinary::valueToHexEx(g_memoryMap.listRecords.at(i).nOffset), XBinary::valueToHexEx(g_memoryMap.listRecords.at(i).nSize),
-                                              g_memoryMap.listRecords.at(i).sName),
+                                         .arg(XBinary::valueToHexEx(m_memoryMap.listRecords.at(i).nOffset), XBinary::valueToHexEx(m_memoryMap.listRecords.at(i).nSize),
+                                              m_memoryMap.listRecords.at(i).sName),
                                      Qt::UserRole + 3);
 
-                if (g_memoryMap.listRecords.at(i).nOffset != -1) {
-                    pItemOffset->setText(XLineEditHEX::getFormatString(m_mode, g_memoryMap.listRecords.at(i).nOffset));
+                if (m_memoryMap.listRecords.at(i).nOffset != -1) {
+                    pItemOffset->setText(XLineEditHEX::getFormatString(m_mode, m_memoryMap.listRecords.at(i).nOffset));
                 } else {
                     //                pItemOffset->setBackground(colDisabled);
                 }
@@ -244,8 +244,8 @@ void XMemoryMapWidget::updateMemoryMap()
 
                 QStandardItem *pItemAddress = new QStandardItem;
 
-                if (g_memoryMap.listRecords.at(i).nAddress != (quint64)-1) {
-                    pItemAddress->setText(XLineEditHEX::getFormatString(m_mode, g_memoryMap.listRecords.at(i).nAddress));
+                if (m_memoryMap.listRecords.at(i).nAddress != (quint64)-1) {
+                    pItemAddress->setText(XLineEditHEX::getFormatString(m_mode, m_memoryMap.listRecords.at(i).nAddress));
                 } else {
                     //                pItemAddress->setBackground(colDisabled);
                 }
@@ -254,13 +254,13 @@ void XMemoryMapWidget::updateMemoryMap()
 
                 QStandardItem *pItemSize = new QStandardItem;
 
-                pItemSize->setText(XLineEditHEX::getFormatString(m_mode, g_memoryMap.listRecords.at(i).nSize));
+                pItemSize->setText(XLineEditHEX::getFormatString(m_mode, m_memoryMap.listRecords.at(i).nSize));
 
                 pModel->setItem(j, 2, pItemSize);
 
                 QStandardItem *pItemName = new QStandardItem;
 
-                pItemName->setText(g_memoryMap.listRecords.at(i).sName);
+                pItemName->setText(m_memoryMap.listRecords.at(i).sName);
                 pModel->setItem(j, 3, pItemName);
 
                 j++;
@@ -318,10 +318,10 @@ void XMemoryMapWidget::_adjust(bool bInit)
         ui->lineEditVirtualAddress->setReadOnly(true);
         ui->lineEditRelativeVirtualAddress->setReadOnly(true);
 
-        nVirtualAddress = XBinary::offsetToAddress(&g_memoryMap, nFileOffset);
-        nRelativeVirtualAddress = XBinary::offsetToRelAddress(&g_memoryMap, nFileOffset);
+        nVirtualAddress = XBinary::offsetToAddress(&m_memoryMap, nFileOffset);
+        nRelativeVirtualAddress = XBinary::offsetToRelAddress(&m_memoryMap, nFileOffset);
 
-        XBinary::_MEMORY_RECORD memoryRecord = XBinary::getMemoryRecordByOffset(&g_memoryMap, nFileOffset);
+        XBinary::_MEMORY_RECORD memoryRecord = XBinary::getMemoryRecordByOffset(&m_memoryMap, nFileOffset);
 
         if (memoryRecord.nSize) {
             nTableViewIndex = memoryRecord.nIndex;
@@ -338,10 +338,10 @@ void XMemoryMapWidget::_adjust(bool bInit)
         ui->lineEditVirtualAddress->setReadOnly(false);
         ui->lineEditRelativeVirtualAddress->setReadOnly(true);
 
-        nFileOffset = XBinary::addressToOffset(&g_memoryMap, nVirtualAddress);
-        nRelativeVirtualAddress = XBinary::addressToRelAddress(&g_memoryMap, nVirtualAddress);
+        nFileOffset = XBinary::addressToOffset(&m_memoryMap, nVirtualAddress);
+        nRelativeVirtualAddress = XBinary::addressToRelAddress(&m_memoryMap, nVirtualAddress);
 
-        XBinary::_MEMORY_RECORD memoryRecord = XBinary::getMemoryRecordByAddress(&g_memoryMap, nVirtualAddress);
+        XBinary::_MEMORY_RECORD memoryRecord = XBinary::getMemoryRecordByAddress(&m_memoryMap, nVirtualAddress);
 
         if (memoryRecord.nSize) {
             nTableViewIndex = memoryRecord.nIndex;
@@ -358,10 +358,10 @@ void XMemoryMapWidget::_adjust(bool bInit)
         ui->lineEditVirtualAddress->setReadOnly(true);
         ui->lineEditRelativeVirtualAddress->setReadOnly(false);
 
-        nFileOffset = XBinary::relAddressToOffset(&g_memoryMap, nRelativeVirtualAddress);
-        nVirtualAddress = XBinary::relAddressToAddress(&g_memoryMap, nRelativeVirtualAddress);
+        nFileOffset = XBinary::relAddressToOffset(&m_memoryMap, nRelativeVirtualAddress);
+        nVirtualAddress = XBinary::relAddressToAddress(&m_memoryMap, nRelativeVirtualAddress);
 
-        XBinary::_MEMORY_RECORD memoryRecord = XBinary::getMemoryRecordByRelAddress(&g_memoryMap, nRelativeVirtualAddress);
+        XBinary::_MEMORY_RECORD memoryRecord = XBinary::getMemoryRecordByRelAddress(&m_memoryMap, nRelativeVirtualAddress);
 
         if (memoryRecord.nSize) {
             nTableViewIndex = memoryRecord.nIndex;
@@ -376,7 +376,7 @@ void XMemoryMapWidget::_adjust(bool bInit)
     }
 
     if (nTableViewIndex != -1) {
-        qint32 nIndex = g_mapIndexes.value(nTableViewIndex, -1);
+        qint32 nIndex = m_mapIndexes.value(nTableViewIndex, -1);
 
         if (nIndex == -1) {
             QMessageBox::information(this, tr("Information"), tr("Virtual address"));
@@ -427,12 +427,12 @@ void XMemoryMapWidget::on_tableViewSelection(const QItemSelection &itemSelected,
 
 void XMemoryMapWidget::_goToOffset(qint64 nOffset, qint64 nSize)
 {
-    if (!g_bLockHex) {
+    if (!m_bLockHex) {
         if (nSize == 0) {
             nSize = 1;
         }
 
-        if (XBinary::isOffsetValid(&g_memoryMap, nOffset)) {
+        if (XBinary::isOffsetValid(&m_memoryMap, nOffset)) {
             ui->stackedWidgetHex->setCurrentIndex(0);
 
             ui->widgetHex->goToOffset(nOffset);
@@ -447,13 +447,13 @@ void XMemoryMapWidget::_goToOffset(qint64 nOffset, qint64 nSize)
 
 void XMemoryMapWidget::onHexCursorChanged(qint64 nOffset)
 {
-    g_bLockHex = true;  // TODO mb use SignalBlocker
+    m_bLockHex = true;  // TODO mb use SignalBlocker
 
     if (!ui->lineEditFileOffset->isFocused()) {
         ui->lineEditFileOffset->setValidatorModeValue(m_mode, nOffset);
     }
 
-    g_bLockHex = false;
+    m_bLockHex = false;
 }
 
 void XMemoryMapWidget::registerShortcuts(bool bState)
@@ -582,7 +582,7 @@ void XMemoryMapWidget::viewSelection()
             XADDR nVirtualAddress = listIndexes.at(0).data(Qt::UserRole + 1).toLongLong();
             qint64 nSize = listIndexes.at(0).data(Qt::UserRole + 2).toLongLong();
 
-            qint64 nRelativeVirtualAddress = XBinary::addressToRelAddress(&g_memoryMap, nVirtualAddress);
+            qint64 nRelativeVirtualAddress = XBinary::addressToRelAddress(&m_memoryMap, nVirtualAddress);
 
             ui->lineEditFileOffset->setValidatorModeValue(m_mode, nFileOffset);
             ui->lineEditVirtualAddress->setValidatorModeValue(m_mode, nVirtualAddress);
@@ -609,21 +609,21 @@ void XMemoryMapWidget::on_toolButtonFileOffsetFind_clicked()
 {
     quint64 nValue = ui->lineEditFileOffset->getValue_uint64();
 
-    emit findValue(nValue, g_memoryMap.endian);
+    emit findValue(nValue, m_memoryMap.endian);
 }
 
 void XMemoryMapWidget::on_toolButtonVirtualAddressFind_clicked()
 {
     quint64 nValue = ui->lineEditVirtualAddress->getValue_uint64();
 
-    emit findValue(nValue, g_memoryMap.endian);
+    emit findValue(nValue, m_memoryMap.endian);
 }
 
 void XMemoryMapWidget::on_toolButtonRelativeVirtualAddressFind_clicked()
 {
     quint64 nValue = ui->lineEditRelativeVirtualAddress->getValue_uint64();
 
-    emit findValue(nValue, g_memoryMap.endian);
+    emit findValue(nValue, m_memoryMap.endian);
 }
 
 void XMemoryMapWidget::on_comboBoxMapMode_currentIndexChanged(int nIndex)

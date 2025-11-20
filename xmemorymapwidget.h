@@ -90,12 +90,12 @@ signals:
 private:
     Ui::XMemoryMapWidget *ui;
     QIODevice *m_pDevice;
-    OPTIONS g_options;
-    XBinary::_MEMORY_MAP g_memoryMap;
+    OPTIONS m_options;
+    XBinary::_MEMORY_MAP m_memoryMap;
     XLineEditValidator::MODE m_mode;
-    bool g_bLockHex;
-    QMap<qint32, qint32> g_mapIndexes;
-    XInfoDB *g_pXInfoDB;
+    bool m_bLockHex;
+    QMap<qint32, qint32> m_mapIndexes;
+    XInfoDB *m_pXInfoDB;
 };
 
 #endif  // XMEMORYMAPWIDGET_H
