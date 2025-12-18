@@ -72,7 +72,7 @@ void XMemoryMapWidget::setData(QIODevice *pDevice, const OPTIONS &options, XInfo
     m_options = options;
     m_pXInfoDB = pXInfoDB;
 
-    XHexView::OPTIONS hex_options = {};  // TODO Check !!!
+    XBinaryView::OPTIONS hex_options = {};  // TODO Check !!!
 
     ui->widgetHex->setData(pDevice, hex_options, true, pXInfoDB);
 
