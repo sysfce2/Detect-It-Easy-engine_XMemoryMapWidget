@@ -51,7 +51,7 @@ XMemoryMapWidget::XMemoryMapWidget(QWidget *pParent) : XShortcutsWidget(pParent)
     ui->lineEditVirtualAddress->setToolTip(tr("Virtual address"));
     ui->lineEditRelativeVirtualAddress->setToolTip(tr("Relative virtual address"));
 
-    m_pDevice = nullptr;
+    m_inData = {};
     m_options = {};
     m_mode = XLineEditValidator::MODE_HEX_16;
     m_bLockHex = false;
@@ -63,21 +63,26 @@ XMemoryMapWidget::XMemoryMapWidget(QWidget *pParent) : XShortcutsWidget(pParent)
 
 XMemoryMapWidget::~XMemoryMapWidget()
 {
+    ui->widgetHex->reset();
+    XFormats::removeDevice(m_inData.pDevice, m_inData);
     delete ui;
 }
 
-void XMemoryMapWidget::setData(QIODevice *pDevice, const OPTIONS &options, XInfoDB *pXInfoDB)
+void XMemoryMapWidget::setData(const XBinary::INDATA &inData, const OPTIONS &options, XInfoDB *pXInfoDB)
 {
-    m_pDevice = pDevice;
+    ui->widgetHex->reset();
+    XFormats::removeDevice(m_inData.pDevice, m_inData);
+    m_inData = inData;
+    m_inData.pDevice = XFormats::createDevice(inData);
     m_options = options;
     m_pXInfoDB = pXInfoDB;
 
     XBinaryView::OPTIONS hex_options = {};  // TODO Check !!!
 
-    ui->widgetHex->setData(pDevice, hex_options, true, pXInfoDB);
+    ui->widgetHex->setData(m_inData.pDevice, hex_options, true, pXInfoDB);
 
-    if (pDevice) {
-        XFormats::setFileTypeComboBox(options.fileType, m_pDevice, ui->comboBoxType);
+    if (m_inData.pDevice) {
+        XFormats::setFileTypeComboBox(options.fileType, m_inData.pDevice, ui->comboBoxType);
         XFormats::getMapModesList(options.fileType, ui->comboBoxMapMode);
 
         updateMemoryMap();
@@ -94,8 +99,19 @@ void XMemoryMapWidget::setData(QIODevice *pDevice, const OPTIONS &options, XInfo
     }
 }
 
+void XMemoryMapWidget::setData(QIODevice *pDevice, const OPTIONS &options, XInfoDB *pXInfoDB)
+{
+    setData(XFormats::createINDATA(options.fileType, pDevice), options, pXInfoDB);
+}
+
+QIODevice *XMemoryMapWidget::getDevice()
+{
+    return m_inData.pDevice;
+}
+
 void XMemoryMapWidget::setXInfoDB(XInfoDB *pXInfoDB)
 {
+    m_pXInfoDB = pXInfoDB;
     ui->widgetHex->setXInfoDB(pXInfoDB);
 }
 
@@ -167,7 +183,7 @@ void XMemoryMapWidget::on_radioButtonRelativeVirtualAddress_toggled(bool bChecke
 
 void XMemoryMapWidget::updateMemoryMap()
 {
-    if (m_pDevice) {
+    if (m_inData.pDevice) {
         const bool bBlocked1 = ui->lineEditFileOffset->blockSignals(true);
         const bool bBlocked2 = ui->lineEditVirtualAddress->blockSignals(true);
         const bool bBlocked3 = ui->lineEditRelativeVirtualAddress->blockSignals(true);
@@ -179,7 +195,7 @@ void XMemoryMapWidget::updateMemoryMap()
         XBinary::FT fileType = (XBinary::FT)(ui->comboBoxType->currentData().toInt());
         XBinary::MAPMODE mapMode = (XBinary::MAPMODE)(ui->comboBoxMapMode->currentData().toInt());
 
-        m_memoryMap = XFormats::getMemoryMap(fileType, mapMode, m_pDevice);
+        m_memoryMap = XFormats::getMemoryMap(fileType, mapMode, m_inData.pDevice);
 
         ui->lineEditArch->setText(m_memoryMap.sArch);
         ui->lineEditMode->setText(XBinary::modeIdToString(m_memoryMap.mode));
@@ -464,7 +480,8 @@ void XMemoryMapWidget::registerShortcuts(bool bState)
 
 void XMemoryMapWidget::on_toolButtonSave_clicked()
 {
-    XShortcutsWidget::saveTableModel(ui->tableViewMemoryMap->getProxyModel(), XBinary::getResultFileName(m_pDevice, QString("%1.txt").arg(tr("Memory map"))));
+    XShortcutsWidget::saveTableModel(ui->tableViewMemoryMap->getProxyModel(),
+                                     XBinary::getResultFileName(m_inData.pDevice, QString("%1.txt").arg(tr("Memory map"))));
 }
 
 void XMemoryMapWidget::on_checkBoxShowAll_stateChanged(int nValue)
@@ -476,7 +493,7 @@ void XMemoryMapWidget::on_checkBoxShowAll_stateChanged(int nValue)
 
 void XMemoryMapWidget::on_toolButtonDumpAll_clicked()
 {
-    QString sDirectory = QFileDialog::getExistingDirectory(this, tr("Dump all"), XBinary::getDeviceDirectory(m_pDevice));
+    QString sDirectory = QFileDialog::getExistingDirectory(this, tr("Dump all"), XBinary::getDeviceDirectory(m_inData.pDevice));
 
     if (!sDirectory.isEmpty()) {
         qint32 nNumberOfRecords = ui->tableViewMemoryMap->model()->rowCount();
@@ -498,12 +515,12 @@ void XMemoryMapWidget::on_toolButtonDumpAll_clicked()
                 listRecords.append(record);
             }
 
-            QString sJsonFileName = sDirectory + QDir::separator() + XBinary::getDeviceFileBaseName(m_pDevice) + ".patch.json";
+            QString sJsonFileName = sDirectory + QDir::separator() + XBinary::getDeviceFileBaseName(m_inData.pDevice) + ".patch.json";
 
             DumpProcess dumpProcess;
             XDialogProcess dd(this, &dumpProcess);
             dd.setGlobal(getShortcuts(), getGlobalOptions());
-            dumpProcess.setData(m_pDevice, listRecords, DumpProcess::DT_DUMP_DEVICE_OFFSET, sJsonFileName, dd.getPdStruct());
+            dumpProcess.setData(m_inData.pDevice, listRecords, DumpProcess::DT_DUMP_DEVICE_OFFSET, sJsonFileName, dd.getPdStruct());
             dd.start();
             dd.showDialogDelay();
         }
@@ -543,14 +560,14 @@ void XMemoryMapWidget::dumpSection()
             sName = tr("Dump");
         }
 
-        QString sSaveFileName = XBinary::getResultFileName(m_pDevice, QString("%1.bin").arg(sName));
+        QString sSaveFileName = XBinary::getResultFileName(m_inData.pDevice, QString("%1.bin").arg(sName));
         QString sFileName = QFileDialog::getSaveFileName(this, tr("Save dump"), sSaveFileName, QString("%1 (*.bin)").arg(tr("Raw data")));
 
         if (!sFileName.isEmpty()) {
             DumpProcess dumpProcess;
             XDialogProcess dd(this, &dumpProcess);
             dd.setGlobal(getShortcuts(), getGlobalOptions());
-            dumpProcess.setData(m_pDevice, nOffset, nSize, sFileName, DumpProcess::DT_DUMP_DEVICE_OFFSET, dd.getPdStruct());
+            dumpProcess.setData(m_inData.pDevice, nOffset, nSize, sFileName, DumpProcess::DT_DUMP_DEVICE_OFFSET, dd.getPdStruct());
             dd.start();
             dd.showDialogDelay();
         }

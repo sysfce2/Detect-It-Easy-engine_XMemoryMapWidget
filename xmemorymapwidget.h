@@ -47,7 +47,9 @@ public:
     explicit XMemoryMapWidget(QWidget *pParent = nullptr);
     ~XMemoryMapWidget();
 
+    void setData(const XBinary::INDATA &inData, const OPTIONS &options, XInfoDB *pXInfoDB = nullptr);
     void setData(QIODevice *pDevice, const OPTIONS &options, XInfoDB *pXInfoDB);
+    QIODevice *getDevice();
     void setXInfoDB(XInfoDB *pXInfoDB);  // TODO remove
     void goToOffset(qint64 nOffset);     // TODO remove use setLocation
     virtual void setLocation(quint64 nLocation, qint32 nLocationType, qint64 nSize);
@@ -89,7 +91,7 @@ signals:
 
 private:
     Ui::XMemoryMapWidget *ui;
-    QIODevice *m_pDevice;
+    XBinary::INDATA m_inData;
     OPTIONS m_options;
     XBinary::_MEMORY_MAP m_memoryMap;
     XLineEditValidator::MODE m_mode;
